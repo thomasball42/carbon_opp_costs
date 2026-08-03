@@ -1,0 +1,10 @@
+# data fetching
+requests
+easyDataverse
+
+# general
+pandas
+numpy
+rasterio
+geopandas
+
