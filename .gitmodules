@@ -1,0 +1,3 @@
+[submodule "PixelAreaCalc"]
+	path = PixelAreaCalc
+	url = https://github.com/thomasball42/PixelAreaCalc.git
