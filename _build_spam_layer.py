@@ -85,4 +85,4 @@ def summarise_spam_layers(year_data, year, spam_year_file, target_shape=(2160, 4
         transform=global_transform,
         nodata=-1
     ) as dst:
-        dst.write(np.where(proportional_output < 0, -1, total_hectares).astype(np.float32), indexes=1)    
+        dst.write(np.where(proportional_output < 0, -1, total_hectares).astype(np.float32), indexes=1)

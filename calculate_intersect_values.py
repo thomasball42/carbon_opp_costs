@@ -6,6 +6,7 @@ import os
 import re
 from pathlib import Path
 import _process_livestock_data
+import _build_spam_layer
 
 import numpy as np
 import pandas as pd
@@ -22,6 +23,7 @@ years = [
         "2020"
         ]
 
+unit_label = "tonnes C per ha"
 input_data_path = Path("data") / "downloads" / "hayek21" / "carbon_diff" / "data" / "animal_COC.tif"
 output_dir = Path("outputs")
 
@@ -101,12 +103,11 @@ def main(years = years):
         return mean_value, mean_sem, int(pixel_count), physical_area
 
     def convert_units(data_array, unit_conv=100, no_data=-1):
-        """delta-p is already per-km2, so this just rescales units and floors no-data pixels."""
         proportional_output = data_array / unit_conv
         proportional_output = np.where(proportional_output < 0, no_data, proportional_output)
         return proportional_output
 
-    output_columns = ["ISO3", "item_name", "band_name", "deltaE_mean", "deltaE_mean_sem", "unit", "pixel_count", "physical_area_km2"]
+    output_columns = ["ISO3", "item_name", "band_name", "data_mean", "data_mean_sem", "unit", "pixel_count", "physical_area_km2"]
     max_workers = min(NUM_THREADS, os.cpu_count() or 1)
 
     # run the thing!
@@ -127,8 +128,16 @@ def main(years = years):
             crop_match = re.search(r"_([A-Z]{4})_A\.tif$", tif_path.name)
             if crop_match:
                 spam_data[crop_match.group(1)] = {"path": str(tif_path)}
+
+        spam_all_dir = os.path.join("data", "inputs", "mapspam_allc")
+        os.makedirs(spam_all_dir, exist_ok=True)
+        spam_all_path = os.path.join(spam_all_dir, f"mapspam_all_{year}.tif")
+        spam_all_total_hectares_path = spam_all_path.replace(".tif", "_total_hectares.tif")
+        if not os.path.isfile(spam_all_total_hectares_path):
+            _build_spam_layer.summarise_spam_layers({"mapspam": spam_data}, year, spam_all_path, target_shape=target_shape)
+
         spam_data["ALLC"] = {
-            "path": os.path.join("data", "food", "mapspam", f"mapspam_all_{year}_total_hectares.tif"),
+            "path": spam_all_total_hectares_path,
             "unit": 'harvested area in hectares / pixel'
         }
 
@@ -137,7 +146,7 @@ def main(years = years):
 
         total_items = (len(spam_data) + len(livestock_files)) * len(country_isos) * band_count
 
-        with tqdm(total=total_items, desc=f"Calculating delta-p ({year}, {len(country_isos)} countries)", unit="item") as pbar:
+        with tqdm(total=total_items, desc=f"Calculating ({year}, {len(country_isos)} countries)", unit="item") as pbar:
 
             for band_idx in range(1, band_count + 1):
 
@@ -172,7 +181,7 @@ def main(years = years):
                             dst_nodata=np.nan,
                         )
 
-                    normalised_data = convert_units(item_dataset, unit_conv=100, no_data=np.nan)
+                    normalised_data = convert_units(item_dataset, unit_conv=100, no_data=np.nan) #ha to km2
 
                     weights_flat = normalised_data.ravel()
                     vals_flat = band_data.ravel()
@@ -180,7 +189,7 @@ def main(years = years):
                     rows = []
                     for iso3 in country_isos:
                         mean_value, mean_sem, pixel_count, physical_area = process_country(country_flat_indices[iso3], weights_flat, vals_flat)
-                        rows.append((iso3, item_name, band_name, mean_value, mean_sem, "deltaE per km2 per sp.", pixel_count, physical_area))
+                        rows.append((iso3, item_name, band_name, mean_value, mean_sem, unit_label, pixel_count, physical_area))
                     return item_name, rows
 
                 with ThreadPoolExecutor(max_workers=max_workers) as executor:
@@ -197,9 +206,9 @@ def main(years = years):
                             source=rasterio.band(src, 1),
                             destination=pasture_data,
                             src_transform=src.transform,
-                            src_crs=src.crs,
+                            src_crs=src.crs or input_dataset.crs,
                             dst_transform=global_transform,
-                            dst_crs=src.crs,
+                            dst_crs=input_dataset.crs,
                             resampling=Resampling.nearest,
                             src_nodata=src.nodata,
                             dst_nodata=np.nan,
@@ -232,7 +241,7 @@ def main(years = years):
                     rows = []
                     for iso3 in country_isos:
                         mean_value, mean_sem, pixel_count, physical_area = process_country(country_flat_indices[iso3], weights_flat, vals_flat, extra_weights_flat=extra_weights_flat)
-                        rows.append((iso3, item_name, band_name, mean_value, mean_sem, "deltaE per km2 per sp.", pixel_count, physical_area))
+                        rows.append((iso3, item_name, band_name, mean_value, mean_sem, unit_label, pixel_count, physical_area))
                     return item_name, rows
 
                 with ThreadPoolExecutor(max_workers=max_workers) as executor:
