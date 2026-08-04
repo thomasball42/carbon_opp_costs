@@ -23,9 +23,13 @@ years = [
         "2020"
         ]
 
-unit_label = "tonnes C per ha"
+
 input_data_path = Path("data") / "downloads" / "hayek21" / "carbon_diff" / "data" / "animal_COC.tif"
 output_dir = Path("outputs")
+backup_band_names = ["median", "5th_percentile", "95th_percentile"]
+
+input_unit_conversion = 100  # ha to km2, input is "tonnes c / ha"
+unit_label = "tonnes carbon per km2"
 
 NUM_THREADS = 48
 
@@ -120,8 +124,8 @@ def main(years = years):
             os.makedirs(output_dir, exist_ok=True)
 
         input_dataset = rasterio.open(input_data_path)
-        band_names = input_dataset.descriptions
         band_count = input_dataset.count
+        band_names = [desc if desc is not None else backup_band_names[i] for i, desc in enumerate(input_dataset.descriptions)]
 
         spam_data = {}
         for tif_path in Path("data", "inputs", "mapspam").rglob(f"*{year}*_A.tif"):
@@ -164,6 +168,7 @@ def main(years = years):
                     src_nodata=input_dataset.nodata,
                     dst_nodata=np.nan,
                 )
+                band_data = band_data / input_unit_conversion
 
                 def process_item(item_name, item_path):
                     """reproject + normalise + per-country stats for one crop item, independent of every other item"""
