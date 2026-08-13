@@ -7,28 +7,29 @@ from easyDataverse import Dataverse  # type: ignore
 import zipfile
 import subprocess
 
-
 dataverse_api_token = os.environ["DATAVERSE_API_TOKEN"]
 
 dataverse = Dataverse("https://dataverse.harvard.edu/",
                         api_token = dataverse_api_token)
 
+download_dest = "data/downloads/walker"
 data_urls = {
             "walker22" : { # https://doi.org/10.1073/pnas.2111312119
                 "doi" : "doi:10.7910/DVN/DSDDQK",
                 "files" : [
                         "Base_Unr_AGB_BGB_SOC_MgCha_500m.tif",
+                        "Base_Con_Unr_AGB_BGB_SOC_MgCha_500m.tif"
                         # "Base_Cur_AGB_UI_500m.tif",
                         # "Base_Pot_AGB_UI_500m.tif",
                     ],  # only these get downloaded
                 }
 }
 
-if not os.path.isdir("data/downloads/walker"):
-    os.makedirs("data/downloads/walker", exist_ok=True)
+if not os.path.isdir(download_dest):
+    os.makedirs(download_dest, exist_ok=True)
 
 dataset = dataverse.load_dataset(
     pid=data_urls["walker22"]["doi"],
-    filedir="data/downloads/walker",
+    filedir=download_dest,
     filenames=data_urls["walker22"]["files"]
 )

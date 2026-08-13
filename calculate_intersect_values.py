@@ -17,14 +17,15 @@ import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 warnings.filterwarnings("ignore", category=RuntimeWarning)
-
+carbon_data = "walker"
 years = [
         "2010",
         "2020"
         ]
 
 
-input_data_path = Path("data") / "downloads" / "hayek21" / "carbon_diff" / "data" / "animal_COC.tif"
+input_data_path = Path("data") / "inputs" / "walker" / "walker22_carbon_opp_cost_MgCha.tif"
+
 output_dir = Path("outputs")
 backup_band_names = ["median", "5th_percentile", "95th_percentile"]
 
@@ -117,7 +118,7 @@ def main(years = years):
     # run the thing!
     for year in years:
 
-        output_file = os.path.join(output_dir, f"processed_coc_data_{year}.csv")
+        output_file = os.path.join(output_dir, f"processed_coc_data_{carbon_data}_mapspam{year}.csv")
         output_rows = []
 
         if not os.path.exists(output_dir):
