@@ -27,9 +27,13 @@ years = [
 input_data_path = Path("data") / "inputs" / "walker" / "walker22_carbon_opp_cost_MgCha.tif"
 
 output_dir = Path("outputs")
-backup_band_names = ["median", "5th_percentile", "95th_percentile"]
 
-input_unit_conversion = 100  # ha to km2, input is "tonnes c / ha"
+# backup_band_names = ["median", "5th_percentile", "95th_percentile"] # these apply to hayek
+backup_band_names = ["agri_potential_carbon"] # these apply to walker
+
+input_unit_conversion = 100  # ha to km2, input is "tonnes c / ha" (for hayek)
+input_unit_conversion = 1 * 100  # Mg->tonnes, ha->km2, input is "Mg / ha" (for walker)
+
 unit_label = "tonnes carbon per km2"
 
 NUM_THREADS = 48
