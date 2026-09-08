@@ -1,5 +1,4 @@
 import rasterio
-from rasterio.transform import from_bounds
 from rasterio.warp import reproject, Resampling
 import rasterio.features
 import os
@@ -24,17 +23,15 @@ years = [
         ]
 
 
-input_data_path = Path("data") / "inputs" / "walker" / "walker22_carbon_opp_cost_MgCha.tif"
+input_data_path = Path("data") / "inputs" / "walker" / "walker22_agri_carbon_opp_cost_MgCha.tif"
 
 output_dir = Path("outputs")
 
-# backup_band_names = ["median", "5th_percentile", "95th_percentile"] # these apply to hayek
 backup_band_names = ["agri_potential_carbon"] # these apply to walker
 
-input_unit_conversion = 100  # ha to km2, input is "tonnes c / ha" (for hayek)
 input_unit_conversion = 1 * 100  # Mg->tonnes, ha->km2, input is "Mg / ha" (for walker)
 
-unit_label = "tonnes carbon per km2"
+unit_label = "mean tonnes carbon per km2"
 
 NUM_THREADS = 48
 
@@ -46,10 +43,6 @@ if len(sys.argv) > 1:
 
 def main(years = years):
     warnings.filterwarnings("ignore", category=RuntimeWarning)
-    # global params
-    target_shape = (2160, 4320)
-    global_bounds = (-180.0, -90.0, 180.0, 90.0)
-    global_transform = from_bounds(*global_bounds, target_shape[1], target_shape[0])
 
     countries_shapefile = os.path.join("data", "inputs", "country_data", "geoBoundariesCGAZ_ADM0.shp")
 
@@ -61,6 +54,19 @@ def main(years = years):
 
     isoa3_str = "shapeGroup"
     country_isos = countries_data[isoa3_str].unique()
+
+    # Analysis grid is whatever shape/transform/crs the mapspam data (the shared grid
+    # for spam, pasture and livestock inputs) already uses, rather than a hardcoded
+    # target -- country polygons rasterize correctly onto any grid, so there's no need
+    # to force everything onto a specific one.
+    reference_tif = next(Path("data", "inputs", "mapspam").rglob("*_A.tif"))
+    with rasterio.open(reference_tif) as ref:
+        target_shape = ref.shape
+        global_transform = ref.transform
+        target_crs = ref.crs
+
+    if countries_data.crs != target_crs:
+        countries_data = countries_data.to_crs(target_crs)
 
     country_masks = {}
     for iso3 in tqdm(country_isos, desc="Precomputing country masks"):
@@ -90,7 +96,11 @@ def main(years = years):
             raw_extra_weights = extra_weights_flat[idx]
             extra_valid = ~np.isnan(raw_extra_weights)
 
-        valid_indices = (~np.isnan(w)) & (~np.isnan(v)) & extra_valid
+        # w == 0 means the crop/livestock genuinely isn't present at that pixel (not missing
+        # data), so it must be excluded here too -- otherwise vals_used/variance end up covering
+        # ~the whole country mask rather than the intersection of the country and where this
+        # item actually has weight, and mean_sem stops meaning anything crop-specific.
+        valid_indices = (~np.isnan(w)) & (~np.isnan(v)) & extra_valid & ((w * raw_extra_weights) > 0)
 
         if not np.any(valid_indices):
             return np.nan, np.nan, np.nan, np.nan
@@ -168,7 +178,7 @@ def main(years = years):
                     src_transform=input_dataset.transform,
                     src_crs=input_dataset.crs,
                     dst_transform=global_transform,
-                    dst_crs=input_dataset.crs,
+                    dst_crs=target_crs,
                     resampling=Resampling.nearest,
                     src_nodata=input_dataset.nodata,
                     dst_nodata=np.nan,
@@ -185,7 +195,7 @@ def main(years = years):
                             src_transform=src.transform,
                             src_crs=src.crs,
                             dst_transform=global_transform,
-                            dst_crs=src.crs,
+                            dst_crs=target_crs,
                             resampling=Resampling.nearest,
                             src_nodata=src.nodata,
                             dst_nodata=np.nan,
@@ -216,9 +226,9 @@ def main(years = years):
                             source=rasterio.band(src, 1),
                             destination=pasture_data,
                             src_transform=src.transform,
-                            src_crs=src.crs or input_dataset.crs,
+                            src_crs=src.crs or target_crs,
                             dst_transform=global_transform,
-                            dst_crs=input_dataset.crs,
+                            dst_crs=target_crs,
                             resampling=Resampling.nearest,
                             src_nodata=src.nodata,
                             dst_nodata=np.nan,
@@ -236,7 +246,7 @@ def main(years = years):
                             src_transform=src.transform,
                             src_crs=src.crs,
                             dst_transform=global_transform,
-                            dst_crs=src.crs,
+                            dst_crs=target_crs,
                             resampling=Resampling.nearest,
                             src_nodata=src.nodata,
                             dst_nodata=np.nan,
