@@ -78,9 +78,7 @@ def main(years = years):
             invert=True
         )
 
-    # flat pixel indices per country, computed once so per-item/per-band processing
-    # only ever touches the (small) subset of the global raster each country covers,
-    # instead of re-scanning the full 2160x4320 grid for every country every time
+    # flat pixel indices per country
     country_flat_indices = {iso3: np.flatnonzero(mask) for iso3, mask in country_masks.items()}
 
     def process_country(idx, weights_flat, vals_flat, extra_weights_flat=None):
@@ -179,7 +177,13 @@ def main(years = years):
                     src_crs=input_dataset.crs,
                     dst_transform=global_transform,
                     dst_crs=target_crs,
-                    resampling=Resampling.nearest,
+                    # the carbon raster is the only input not already on the analysis grid
+                    # (463m Sinusoidal -> 5 arcmin, ~200-400 source pixels per target cell),
+                    # so it's the only one where the method matters. average skips src_nodata,
+                    # giving the mean over each cell's agricultural pixels; nearest would keep
+                    # one pixel in ~400 at random. Every other reproject below is a
+                    # pixel-for-pixel identity and stays on nearest.
+                    resampling=Resampling.average,
                     src_nodata=input_dataset.nodata,
                     dst_nodata=np.nan,
                 )

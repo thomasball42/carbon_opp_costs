@@ -50,10 +50,14 @@ def process_walker_data():
 
     non_agri_mask = const_data != 0 # where constrained data is nonzero there is no agri so no opportunity cost
 
-    diff_data = np.where(non_agri_mask, nodata_val, unconst_data - const_data)
-    diff_data = np.where(nodata_mask, nodata_val, diff_data) # clean up actual no data vals
+    # clamp before masking: nodata_val is itself <= 0, so clamping last would silently
+    # overwrite every sentinel with 0 and make non-agri/nodata indistinguishable from
+    # "agricultural land with zero opportunity cost" -- which then poisons any
+    # area-weighted downsampling downstream
+    diff_data = unconst_data - const_data
+    diff_data = np.where(diff_data <= 0, 0, diff_data)
 
-    diff_data = np.where(diff_data <= 0, 0, diff_data) 
+    diff_data = np.where(non_agri_mask | nodata_mask, nodata_val, diff_data)
 
     # dst_transform = from_bounds(*target_georef["bounds"],
     #                              width=target_georef["target_shape"][1],
