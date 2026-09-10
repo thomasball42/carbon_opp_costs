@@ -29,7 +29,10 @@ output_dir = Path("outputs")
 
 backup_band_names = ["agri_potential_carbon"] # these apply to walker
 
-input_unit_conversion = 1 * 100  # Mg->tonnes, ha->km2, input is "Mg / ha" (for walker)
+# input is "Mg / ha" (for walker). Mg->tonnes is 1:1; per-ha->per-km2 multiplies by the
+# 100 ha in a km2. This is a density, so the factor is applied as a multiply -- unlike the
+# ha->km2 conversion of the SPAM *area* weights in convert_units(), which divides.
+input_unit_conversion = 1 * 100
 
 unit_label = "mean tonnes carbon per km2"
 
@@ -187,7 +190,7 @@ def main(years = years):
                     src_nodata=input_dataset.nodata,
                     dst_nodata=np.nan,
                 )
-                band_data = band_data / input_unit_conversion
+                band_data = band_data * input_unit_conversion
 
                 def process_item(item_name, item_path):
                     """reproject + normalise + per-country stats for one crop item, independent of every other item"""
