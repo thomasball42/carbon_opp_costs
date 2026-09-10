@@ -159,7 +159,7 @@ def main(years = years):
         }
 
         pasture_path = os.path.join("data", "downloads", "hyde", f"pasture{year}AD.asc")
-        livestock_files, uncertainty_files = _process_livestock_data.get_livestock_data(year)
+        livestock_files = _process_livestock_data.get_livestock_data(year)
 
         total_items = (len(spam_data) + len(livestock_files)) * len(country_isos) * band_count
 

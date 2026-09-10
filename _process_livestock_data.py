@@ -59,14 +59,10 @@ def get_livestock_data(year,
     if not os.path.isfile(os.path.join(search_dir, "LivestockMap.zip")):
         os.makedirs(search_dir, exist_ok=True)
 
-        url1 = "https://zenodo.org/records/17128483/files/LivestockMap.zip?download=1/LivestockMap.zip"
-        # url2 = "https://zenodo.org/records/17128483/files/MapUncertainty.zip?download=1/MapUncertainty.zip"
+        url = "https://zenodo.org/records/17128483/files/LivestockMap.zip?download=1/LivestockMap.zip"
 
-        subprocess.run(["curl", "-L", "-o", os.path.join(search_dir, "LivestockMap.zip"), url1], check=True)
+        subprocess.run(["curl", "-L", "-o", os.path.join(search_dir, "LivestockMap.zip"), url], check=True)
         subprocess.run(["unzip", "-o", os.path.join(search_dir, "LivestockMap.zip"), "-d", search_dir], check=True)
-
-        # subprocess.run(["curl", "-L", "-o", os.path.join(search_dir, "MapUncertainty.zip"), url2], check=True)
-        # subprocess.run(["unzip", "-o", os.path.join(search_dir, "MapUncertainty.zip"), "-d", search_dir], check=True)
 
         # clean up files - not sure why these are included in the repo...
         subprocess.run(f'rm {os.path.join(search_dir, "*", "._*.tif")}', shell=True)
@@ -81,7 +77,6 @@ def get_livestock_data(year,
                 livestock_files.append(os.path.join(root, file))
 
     processed_files = []
-    uncertainty_files = []
     for file in livestock_files:
         processed_file = os.path.join(processed_dir, os.path.split(file)[-1])
         if not os.path.isfile(processed_file):
@@ -91,12 +86,9 @@ def get_livestock_data(year,
                           resolution=(0.083333333333333, -0.083333333333333),
                           bounds=(-180.0, -90.0, 180.0, 90.0),
                           target_shape=(2160, 4320))
-        if "uncertainty" not in file.lower():
-            processed_files.append(processed_file)
-        elif "uncertainty" in file.lower():
-            uncertainty_files.append(processed_file)
-            
-    return processed_files, uncertainty_files
+        processed_files.append(processed_file)
+
+    return processed_files
 
 if __name__ == "__main__":
     
